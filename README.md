@@ -209,8 +209,10 @@ Soweit im Code des Originals erkennbar:
   `503`. Das API-Image hat einen Docker-`HEALTHCHECK`.
 - Strukturierte JSON-Logs (Fastify und Caddy). Query-Strings werden aus den Request-Logs entfernt, damit keine
   personenbezogenen Daten oder Tokens darin landen.
-- Das Backup meldet jeden Lauf an eine Wachhund-URL. Bleibt die Meldung aus, schlägt der externe Dienst Alarm.
-- Ein externer Uptime-Check auf `/api/health` ist vorgesehen, laut Doku aber noch nicht eingerichtet.
+- Das Backup ist so gebaut, dass es jeden Lauf an eine Wachhund-URL meldet. Bleibt die Meldung aus, schlägt der
+  externe Dienst Alarm.
+- Uptime-Check und regelmäßiges Backup sind gebaut und getestet, die Einrichtung auf dem Produktionsserver ist der
+  nächste Schritt. Der Uptime-Check wird dann `/api/health` von außen abfragen.
 
 **Fehlerbehandlung**
 
@@ -226,7 +228,8 @@ Soweit im Code des Originals erkennbar:
 - In der Oberfläche fängt eine Fehlergrenze Abstürze ab und bietet Neuladen an. Eingaben einer offenen Aufgabe
   überstehen einen Verbindungsabbruch.
 - Backups: Datenbank-Dump und Fotos, mit age verschlüsselt, per SFTP auf ein externes Ziel, mit Aufbewahrungsregel und
-  Skript zum Zurückspielen. Im Probelauf zurückgespielt, auf einem echten Server laut Doku noch nicht eingerichtet.
+  Skript zum Zurückspielen. Im Probelauf vollständig zurückgespielt. Die regelmäßige Einrichtung auf dem
+  Produktionsserver ist der nächste Schritt.
 
 ## Arbeitsweise
 
@@ -242,7 +245,7 @@ Im Repository sichtbar:
   bewusst lassen, als falsch begründen).
 - **Tests auf mehreren Ebenen:** 76 Testdateien für Fachlogik, Datenbankregeln, Dienste und Routen, dazu 4
   Playwright-Spezifikationen für die Kernabläufe im Browser. Die CI bricht unter festen Abdeckungs-Untergrenzen ab.
-- **Grenzen offen benannt:** Eine eigene Datei listet, was bewusst noch fehlt und was vor dem Echtbetrieb nötig ist.
+- **Grenzen offen benannt:** Eine eigene Datei listet, was bewusst noch fehlt und was als Nächstes kommt.
 
 Zahlen: Stand des Originals vom 07.11.2026.
 
