@@ -25,22 +25,31 @@ Eine Web-App (PWA) mit zwei Bereichen auf demselben Server. Jedes Filial-iPad si
 - **Koppeln statt Konto:** Ein iPad wird einmalig mit einem kurzlebigen Code an einen Standort gebunden. Danach
   meldet sich jede Person für eine Handlung mit Personalnummer und eigener vierstelliger PIN an.
 - **Aufgaben des Tages:** Die App zeigt, was in welchem Zeitfenster fällig ist, und was offen, versäumt oder erledigt
-  ist. Fragetypen: Temperatur, Haken, in Ordnung oder nicht, Zahl, Text, Auswahl, Foto (zum Beispiel ein Foto der
-  Theke) und Retouren.
+  ist. Fragetypen: Temperatur, Haken, in Ordnung oder nicht, Zahl, Text, Auswahl, Foto (zum Beispiel dreimal am Tag
+  ein Foto der Theke) und Retouren. Zu jeder Aufgabe kann eine kurze Anleitung stehen („Wie und womit“).
 - **Abweichungen:** Liegt eine Temperatur außerhalb des Grenzwerts, sind eine Maßnahme und die Frage „Was ist mit der
   Ware?“ Pflicht. Danach muss innerhalb von 30 Minuten nachgemessen werden, sonst bleibt eine sichtbare Lücke.
 - **Retouren zählen:** Zum Ladenschluss geht die Filiale den Lieferschein des Tages Artikel für Artikel durch.
 - **Nachrichten und Alarm:** Die Zentrale schickt normale Nachrichten oder einen Alarm, der den ganzen Bildschirm
   füllt und bestätigt werden muss. Neue Nachrichten kommen über eine Live-Verbindung (WebSocket), bei geschlossener
   App per Web Push.
+- **An die Zentrale schreiben:** Unter „Nachrichten“ meldet die Filiale, wenn etwas kaputt ist oder fehlt, auf Wunsch
+  mit Foto. Sie sieht danach, ob es noch offen oder schon erledigt ist, und die Antwort der Zentrale kommt als normale
+  Nachricht.
 - **Nachweise:** Die Filiale sieht ihre eigenen Nachweise der letzten 92 Tage.
+- **Hilfe am Gerät:** Erste Schritte und Anleitungen für Filiale, Zentrale und Inhaber, auch als Druckblatt. Für
+  iPad und Android-Tablet gibt es eine Anleitung, das Gerät auf die App zu sperren.
 
 ### In der Zentrale
 
-- **Heute:** Probleme zuerst, also versäumte Aufgaben, Abweichungen, offene Nachmessungen und iPads ohne Verbindung.
+- **Heute:** Probleme zuerst, also laufende Alarme, Meldungen der Filialen, versäumte Aufgaben, Abweichungen, offene
+  Nachmessungen und Filialen ohne iPad.
+- **Nachrichten:** Nachricht oder Alarm an alle oder einzelne Filialen, mit Vorlagen und Live-Stand, wer gelesen oder
+  bestätigt hat. Meldungen der Filialen stehen oben, mit „Erledigt“ und „Antworten“.
 - **Nachweise:** pro Tag und Filiale, mit allen Fassungen. Eine Korrektur ist ein neuer Eintrag mit Begründung, das
   Original bleibt erhalten. Monate werden abgezeichnet. Export als PDF und CSV für die Lebensmittelkontrolle.
-- **Pflege:** Checklisten mit Zeitplänen und Fragen, Kategorien, Messpunkte mit Grenzwerten (Änderung nur mit Grund
+- **Pflege:** Checklisten mit Zeitplänen (täglich, mehrmals täglich, wöchentlich, monatlich, im Quartal, jährlich)
+  und Fragen, Muster aus dem HACCP-Ordner des Betriebs zum Übernehmen in eine Filiale, Kategorien, Messpunkte mit Grenzwerten (Änderung nur mit Grund
   und Verlauf), Maßnahmen-Vorlagen, Mitarbeitende (auch per Import), Standorte mit Öffnungs- und Schließtagen, iPads
   koppeln und sperren.
 - **Retouren:** Auswertung pro Tag mit Rückgabequote, Liste „Viel zurück“ und Filialen, die noch nicht gezählt haben.
@@ -51,7 +60,8 @@ Eine Web-App (PWA) mit zwei Bereichen auf demselben Server. Jedes Filial-iPad si
 ### Was von selbst läuft
 
 Der Server legt alle 5 Minuten die Termine aller aktiven Filialen an, prüft alle 30 Sekunden auf neue Ereignisse und
-verschickt Benachrichtigungen, und räumt stündlich Fotos und Nachweise nach Ablauf ihrer Aufbewahrungsfrist auf.
+verschickt Benachrichtigungen, und räumt stündlich Fotos (Standard nach 30 Tagen), Meldungen und Nachweise nach
+Ablauf ihrer Aufbewahrungsfrist auf.
 
 ## Architektur
 
@@ -142,7 +152,7 @@ Nur, was im Code des Originals steckt:
 
 ## Datenmodell
 
-Vereinfachte Übersicht. Das Original hat 33 Tabellen und 38 Migrationen. Die Tabellen zerfallen in drei Bereiche:
+Vereinfachte Übersicht. Das Original hat 34 Tabellen und 40 Migrationen. Die Tabellen zerfallen in drei Bereiche:
 **Zugang** (wer darf rein), **Vorlagen** (was ist zu tun) und **Nachweise** (was wurde getan, ändert sich nie).
 
 ```mermaid
@@ -163,6 +173,8 @@ erDiagram
   standort ||--o{ lieferschein : "pro Tag"
   lieferschein ||--|{ lieferschein_position : "Artikel und Menge"
   nachricht ||--|{ nachricht_standort : "an Filialen"
+  standort ||--o{ filialmeldung : "schreibt der Zentrale"
+  admin |o--o{ filialmeldung : "erledigt"
 ```
 
 | Bereich   | Tabellen (Auswahl)                                                         | Inhalt                                                                  |
@@ -172,7 +184,7 @@ erDiagram
 | Termine   | `faelligkeit`                                                              | Ein Zeitfenster pro Aufgabe und Tag, vom Hintergrund-Job angelegt       |
 | Nachweise | `eintrag`, `eintrag_wert`, `abzeichnung`, `audit_log`                      | Nur anhängbar, Korrektur als neuer Eintrag mit Verweis auf das Original |
 | Retouren  | `lieferschein`, `lieferschein_position`                                    | Liefermengen pro Filiale und Tag, die Zählung steht im Eintrag          |
-| Nachrichten | `nachricht`, `nachricht_standort`, Push-Abos                             | Nachricht, Alarm, gelesen und bestätigt pro Filiale                     |
+| Nachrichten | `nachricht`, `nachricht_standort`, `filialmeldung`, Push-Abos            | Nachricht, Alarm, gelesen und bestätigt pro Filiale; Meldungen der Filialen mit Stand |
 
 Grundregeln aus dem Projekt:
 
@@ -243,11 +255,11 @@ Im Repository sichtbar:
 - **Ein Branch pro Funktion**, Zusammenführen nur über Pull Request mit grüner CI.
 - **Reviews mit Protokoll:** Review-Aufträge und Funde stehen in der Doku, jeder Fund wird entschieden (beheben,
   bewusst lassen, als falsch begründen).
-- **Tests auf mehreren Ebenen:** 76 Testdateien für Fachlogik, Datenbankregeln, Dienste und Routen, dazu 4
+- **Tests auf mehreren Ebenen:** 78 Testdateien für Fachlogik, Datenbankregeln, Dienste und Routen, dazu 5
   Playwright-Spezifikationen für die Kernabläufe im Browser. Die CI bricht unter festen Abdeckungs-Untergrenzen ab.
 - **Grenzen offen benannt:** Eine eigene Datei listet, was bewusst noch fehlt und was als Nächstes kommt.
 
-Zahlen: Stand des Originals vom 07.11.2026.
+Zahlen: Stand des Originals vom 11.11.2026.
 
 ## Learnings
 
